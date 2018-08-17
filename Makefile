@@ -1,6 +1,7 @@
 CC = g++  
 LINK = g++  
 CFLAGS = -g -Wall -rdynamic -I./ 
+LFLAGS = -lcrypto -lssl
 LIBS =
 
 SRC_DIR = . 
@@ -16,13 +17,13 @@ TARGET = shacoin
 first: all
 
 %.o: %.cpp 
-	$(CC) -c $(CFLAGS) -o $@ $<  
+	$(CC) -c $(CFLAGS) $(LFLAGS) -o $@ $<  
 			  
 all: $(TARGET)  
 
 $(TARGET): $(OBJECTS)
 	@echo $(TARGET)
-	$(LINK) $(CFLAGS) $(LIBS) -o $(TARGET) $(OBJECTS)   
+	$(LINK) $(LIBS) $(OBJECTS) $(CFLAGS) $(LFLAGS) -o $(TARGET)
 
 .PHONY: clean
 
