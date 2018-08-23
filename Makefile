@@ -1,31 +1,12 @@
-CC = g++  
-LINK = g++  
-CFLAGS = -g -Wall -rdynamic -I./ 
-LFLAGS = -lcrypto -lssl
-LIBS =
+DIRS = block holePunching
 
-SRC_DIR = . 
-SFIX = .cpp
-
-SOURCES := $(foreach x,${SRC_DIR},\
-       $(wildcard  \
-       $(addprefix  ${x}/*,${SFIX}) ) )
-#SOURCES = $(wildcard *.cpp)  
-OBJECTS = $(patsubst %.cpp, %.o, $(SOURCES))  
-TARGET = shacoin
-
-first: all
-
-%.o: %.cpp 
-	$(CC) -c $(CFLAGS) $(LFLAGS) -o $@ $<  
+all: subdirs  
+  
+.PHONY: subdirs clean  
+  
+subdirs: $(DIRS) 
+	for dir in $(DIRS); do  make -C $$dir; done
 			  
-all: $(TARGET)  
-
-$(TARGET): $(OBJECTS)
-	@echo $(TARGET)
-	$(LINK) $(LIBS) $(OBJECTS) $(CFLAGS) $(LFLAGS) -o $(TARGET)
-
-.PHONY: clean
-
 clean:  
-	rm -f $(OBJECTS) $(TARGET)  
+	@echo $(DIRS)  
+	for dir in $(DIRS); do  make clean -C $$dir; done

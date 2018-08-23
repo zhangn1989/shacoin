@@ -1,6 +1,6 @@
 CC = g++  
 LINK = g++  
-CFLAGS = -g -Wall -rdynamic -I./ 
+CFLAGS = -g -Wall -rdynamic -I../include 
 LFLAGS = -lcrypto -lssl
 LIBS =
 
