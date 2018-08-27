@@ -76,6 +76,7 @@ typedef struct __KeyPair
 	KeyData pubKey;
 } KeyPair;
 
+static std::list<Transactions> g_lst_ts;
 static std::list<Block> g_lst_block;
 
 std::string GetJsonFromBlock(Block &block)
@@ -131,6 +132,84 @@ Block GetBlockFromJson(const std::string &json)
 	return block;
 }
 
+std::string GetJsonFromBlockList(std::list<Block> &lst_block)
+{
+	int i = 0;
+
+	boost::property_tree::ptree item;
+
+	boost::property_tree::ptree pblock;
+	{
+		std::list<Block>::iterator bit;
+		for (bit = lst_block.begin(); bit != lst_block.end(); ++bit)
+		{
+			boost::property_tree::ptree b;
+			boost::property_tree::ptree pts;
+			{
+				std::list<Transactions>::iterator tit;
+				for (tit = bit->lst_ts.begin(); tit != bit->lst_ts.end(); ++tit)
+				{
+					boost::property_tree::ptree t;
+					t.put("sender", tit->sender);
+					t.put("recipient", tit->recipient);
+					t.put("amount", tit->amount);
+					pts.push_back(make_pair("", t));
+				}
+			}
+
+			b.put("index", bit->index);
+			b.put("timestamp", bit->timestamp);
+			b.put_child("transactions", pts);
+			b.put("proof", bit->proof);
+			b.put("previous_hash", bit->previous_hash);
+			pblock.push_back(make_pair("", b));
+
+			++i;
+		}
+	}
+
+	item.put_child("chain", pblock);
+	item.put("length", i);
+
+	std::stringstream is;
+	boost::property_tree::write_json(is, item);
+	return is.str();
+}
+
+std::list<Block> GetBlockListFromJson(const std::string &json)
+{
+	std::list<Block> lstBlock;
+	std::stringstream ss(json);
+	boost::property_tree::ptree pt;
+	boost::property_tree::ptree barray;
+	boost::property_tree::read_json(ss, pt);
+	barray = pt.get_child("chain");
+
+	for (auto bv : barray)
+	{
+		Block block;
+		boost::property_tree::ptree tarray;
+
+		block.index = bv.second.get<int>("index");
+		block.previous_hash = bv.second.get<std::string>("previous_hash");
+		block.proof = bv.second.get<long int>("proof");
+		block.timestamp = bv.second.get<time_t>("timestamp");
+		tarray = bv.second.get_child("transactions");
+
+		for (auto tv : tarray)
+		{
+			Transactions ts;
+			ts.sender = tv.second.get<std::string>("sender");
+			ts.recipient = tv.second.get<std::string>("recipient");
+			ts.amount = tv.second.get<float>("amount");
+			block.lst_ts.push_back(ts);
+		}
+		lstBlock.push_back(block);
+	}
+
+	return lstBlock;
+}
+
 std::string GetHash(void const* buffer, std::size_t count)
 {
 	std::stringstream ss;
@@ -183,26 +262,6 @@ void Base64Decode(const char *inbuff, int inlen, char *outbuff, int outsize, int
 	*outlen = str.length();
 	memcpy((char *)outbuff, str.c_str(), *outlen);
 	return ;
-}
-
-Transactions CreateTransactions(const std::string &sender, const std::string &recipient, float amount)
-{
-	Transactions ts;
-	ts.sender = sender;
-	ts.recipient = recipient;
-	ts.amount = amount;
-	return ts;
-}
-
-Block CreateBlock(int index, time_t timestamp, std::list<Transactions> &lst_ts, long int proof, const std::string &previous)
-{
-	Block block;
-	block.index = index;
-	block.timestamp = timestamp;
-	block.lst_ts = lst_ts;
-	block.proof = proof;
-	block.previous_hash = previous;
-	return block;
 }
 
 void Createkey(KeyPair &keyPair)
@@ -267,12 +326,6 @@ void Createkey(KeyPair &keyPair)
 
 	EC_GROUP_free(group);
 	EC_KEY_free(key);
-}
-
-std::string CreateNewAddress(const KeyPair &keyPair)
-{
-	std::string hash = GetHash(keyPair.pubKey.key, keyPair.pubKey.len);
-	return Base64Encode(hash.c_str(), hash.length());
 }
 
 int Signature(const KeyData &prikey, const char *data, int datalen, unsigned char *sign, size_t signszie, unsigned int *signlen)
@@ -346,28 +399,116 @@ int Verify(const KeyData &pubkey, const char *data, int datalen, const unsigned 
 	return ret;
 }
 
+std::string CreateNewAddress(const KeyPair &keyPair)
+{
+	std::string hash = GetHash(keyPair.pubKey.key, keyPair.pubKey.len);
+	return Base64Encode(hash.c_str(), hash.length());
+}
+
+Transactions CreateTransactions(const std::string &sender, const std::string &recipient, float amount)
+{
+	Transactions ts;
+	ts.sender = sender;
+	ts.recipient = recipient;
+	ts.amount = amount;
+	return ts;
+}
+
+Block CreateBlock(int index, time_t timestamp, std::list<Transactions> &lst_ts, long int proof, const std::string &previous)
+{
+	Block block;
+	block.index = index;
+	block.timestamp = timestamp;
+	block.lst_ts = lst_ts;
+	block.proof = proof;
+	block.previous_hash = previous;
+	return block;
+}
+
+int WorkloadProof(int last_proof)
+{
+	std::string strHash;
+	std::string strTemp;
+	int proof = last_proof + 1;
+
+	std::string str = "Hello Shacoin!";
+
+	while (true)
+	{
+		strTemp = str + std::to_string(proof);
+		strHash = GetHash(strTemp.c_str(), strTemp.length());
+		if (strHash.back() == '0')
+			return proof;
+		else
+			++proof;
+	}
+}
+
+bool WorkloadVerification(int proof)
+{
+	std::string str = "Hello Shacoin!" + std::to_string(proof);
+	std::string strHash = GetHash(str.c_str(), str.length());
+	return (strHash.back() == '0');
+}
+
+void Mining(const std::string &addr)
+{
+	//挖矿的交易，交易支出方地址为0
+	//每次挖矿成功奖励10个币
+	Block last = g_lst_block.back();
+	std::string strLastBlock = GetJsonFromBlock(last);
+	int proof = WorkloadProof(last.proof);
+	Transactions ts = CreateTransactions("0", addr, 10);
+	g_lst_ts.push_back(ts);
+	Block block = CreateBlock(last.index + 1, time(NULL), g_lst_ts, proof,
+		GetHash(strLastBlock.c_str(), strLastBlock.length()));
+	g_lst_block.push_back(block);
+	g_lst_ts.clear();
+
+	//p2p广播，暂未实现
+}
+
 int main(int argc, char **argv)
 {
-// 	if (lst_block.size() == 0)
-// 	{
-// 		Block GenesisBlock;
-// 		GenesisBlock.index = 0;
-// 		GenesisBlock.timestamp = time(NULL);
-// 		GenesisBlock.lst_ts.clear();
-// 		GenesisBlock.proof = 100;
-// 		GenesisBlock.previous_hash = "1";
-// 		lst_block.push_back(GenesisBlock);
-// 	}
+ 	if (g_lst_block.size() == 0)
+ 	{
+ 		Block GenesisBlock;
+ 		GenesisBlock.index = 0;
+ 		GenesisBlock.timestamp = time(NULL);
+ 		GenesisBlock.lst_ts.clear();
+ 		GenesisBlock.proof = 0;
+ 		GenesisBlock.previous_hash = "0";
+ 		g_lst_block.push_back(GenesisBlock);
+ 	}
+
+ 	KeyPair skeyPair;
+  	Createkey(skeyPair);
+  	std::string sAddr = CreateNewAddress(skeyPair);
+
+	Mining(sAddr);
+
+	std::string strListJson = GetJsonFromBlockList(g_lst_block);
+	std::cout << strListJson << std::endl;
+
+	std::list<Block> lst_block = GetBlockListFromJson(strListJson);
+// 	KeyPair rkeyPair;
+// 	Createkey(rkeyPair);
+// 	std::string rAddr = CreateNewAddress(rkeyPair);
 // 
-// 	KeyPair keyPair;
-//  	Createkey(keyPair);
-//  	std::string addr = CreateNewAddress(keyPair);
+// 	Transactions tr = CreateTransactions(sAddr, rAddr, 10);
+// 	g_lst_ts.push_back(ts);
+// 	Block last = g_lst_block.back();
+// 	std::string strLastBlock = GetJsonFromBlock(last);
 // 
-// 	std::string addrhash = GetHash(addr.c_str(), addr.length());
-// 	unsigned int signlen = 0;
-// 	unsigned char sign[1024] = { 0 };
-// 	int a = Signature(keyPair.prikey, addrhash.c_str(), addrhash.length(), sign, sizeof(sign), &signlen);
-// 	int b = Verify(keyPair.pubKey, addrhash.c_str(), addrhash.length(), sign, sizeof(sign), signlen);
+// 	Block block = CreateBlock(0, time(NULL), g_lst_ts, 100, GetHash(strLastBlock.c_str(), strLastBlock.length()));
+// 	g_lst_block.push_back(block);
+
+
+//  	std::string addrhash = GetHash(addr.c_str(), addr.length());
+//  	unsigned int signlen = 0;
+//  	unsigned char sign[1024] = { 0 };
+//  	int a = Signature(keyPair.prikey, addrhash.c_str(), addrhash.length(), sign, sizeof(sign), &signlen);
+//  	int b = Verify(keyPair.pubKey, addrhash.c_str(), addrhash.length(), sign, sizeof(sign), signlen);
 
 
 	return 0;
