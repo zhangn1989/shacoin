@@ -12,22 +12,26 @@
 #include <algorithm>
 
 #include "p2pServer.hpp"
-
-static std::list<Node> g_lstNode;
-
-static Node &GetQualityNode(std::list<Node> &lstNode, Node &node)
+namespace ShaCoin
 {
-	std::list<Node>::iterator it, next;
-	for (it = lstNode.begin(); it != lstNode.end(); ++it)
+	static std::list<Node> g_lstNode;
+
+	static Node &GetQualityNode(std::list<Node> &lstNode, Node &node)
 	{
-		if(*it == node)
-			continue;
+		std::list<Node>::iterator it, next;
+		for (it = lstNode.begin(); it != lstNode.end(); ++it)
+		{
+			if (*it == node)
+				continue;
 
-		return *it;
+			return *it;
+		}
+
+		return node;
 	}
-
-	return node;
 }
+
+using namespace ShaCoin;
 
 int main(int argc, char **argv)
 {

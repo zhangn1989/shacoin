@@ -1,7 +1,7 @@
 CC = g++  
 LINK = g++  
 CFLAGS = -g -Wall -rdynamic -I../include 
-LFLAGS = -lcrypto -lssl
+LFLAGS = -lcrypto -lssl -pthread
 LIBS =
 
 SRC_DIR = . 
@@ -17,7 +17,7 @@ TARGET = shacoin
 first: all
 
 %.o: %.cpp 
-	$(CC) -c $(CFLAGS) $(LFLAGS) -o $@ $<  
+	$(CC) -c $(CFLAGS) -o $@ $<  
 			  
 all: $(TARGET)  
 
