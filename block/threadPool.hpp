@@ -8,11 +8,11 @@
 namespace ShaCoin
 {
 	template <class T1, class T2>
-	class threadPool
+	class ThreadPool
 	{
 	public:
-		threadPool(int count);
-		virtual ~threadPool();
+		ThreadPool(int count);
+		virtual ~ThreadPool();
 
 		void addTask(T1 t);
 		int start();
@@ -39,7 +39,7 @@ namespace ShaCoin
 	};
 
 	template<class T1, class T2>
-	threadPool<T1, T2>::threadPool(int count)
+	ThreadPool<T1, T2>::ThreadPool(int count)
 	{
 		m_count = count;
 		pthread_mutex_init(&m_mutex, NULL);
@@ -47,7 +47,7 @@ namespace ShaCoin
 	}
 
 	template<class T1, class T2>
-	threadPool<T1, T2>::~threadPool()
+	ThreadPool<T1, T2>::~ThreadPool()
 	{
 		if (!m_bStop)
 			stop();
@@ -57,7 +57,7 @@ namespace ShaCoin
 	}
 
 	template<class T1, class T2>
-	void threadPool<T1, T2>::addTask(T1 t)
+	void ThreadPool<T1, T2>::addTask(T1 t)
 	{
 		pthread_mutex_lock(&m_mutex);
 		m_queue.push(t);
@@ -66,7 +66,7 @@ namespace ShaCoin
 	}
 
 	template<class T1, class T2>
-	int threadPool<T1, T2>::start()
+	int ThreadPool<T1, T2>::start()
 	{
 		int i;
 		pthread_t tid;
@@ -92,7 +92,7 @@ namespace ShaCoin
 	}
 
 	template<class T1, class T2>
-	void threadPool<T1, T2>::stop()
+	void ThreadPool<T1, T2>::stop()
 	{
 		m_bStop = true;
 		pthread_cond_broadcast(&m_cond);
@@ -103,15 +103,15 @@ namespace ShaCoin
 	}
 
 	template<class T1, class T2>
-	void *threadPool<T1, T2>::threadFunc(void *arg)
+	void *ThreadPool<T1, T2>::threadFunc(void *arg)
 	{
-		threadPool<T1, T2> *p = (threadPool<T1, T2>*)arg;
+		ThreadPool<T1, T2> *p = (ThreadPool<T1, T2>*)arg;
 		p->threadHandler();
 		return NULL;
 	}
 
 	template<class T1, class T2>
-	void threadPool<T1, T2>::threadHandler()
+	void ThreadPool<T1, T2>::threadHandler()
 	{
 		while (!m_bStop)
 		{

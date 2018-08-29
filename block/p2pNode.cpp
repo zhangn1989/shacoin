@@ -144,6 +144,8 @@ namespace ShaCoin
 			m_otherIP = m_otherNode.queryIp;
 			m_otherPort = m_otherNode.queryPort;
 		}
+
+		pthread_mutex_init(&m_mutex, NULL);
 	}
 
 	P2PNode::~P2PNode()
@@ -163,6 +165,8 @@ namespace ShaCoin
 		}
 
 		close(m_sock);
+
+		pthread_mutex_destroy(&m_mutex);
 	}
 
 	P2PNode* P2PNode::Instance(const char *if_name)
@@ -241,6 +245,8 @@ namespace ShaCoin
 		Package package;
 		int index = mess.index;
 		std::list<Package>::iterator it;
+
+		pthread_mutex_lock(&m_mutex);
 		for (it = m_lstPackage.begin(); it != m_lstPackage.end(); ++it)
 		{
 			if (it->group == mess.group)
@@ -260,6 +266,7 @@ namespace ShaCoin
 			it->mapMess.insert(std::pair<int, std::string>(index, std::string(mess.mess, mess.length)));
 			package = *it;
 		}
+		pthread_mutex_unlock(&m_mutex);
 
 		if (package.total == (int)package.mapMess.size())
 		{

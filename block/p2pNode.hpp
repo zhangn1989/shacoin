@@ -26,6 +26,7 @@ namespace ShaCoin
 		char *m_otherIP;
 		int m_otherPort;
 		pthread_t m_tid;
+		pthread_mutex_t m_mutex;
 
 		struct sockaddr_in m_serverAddr;
 		struct sockaddr_in m_localAddr;
