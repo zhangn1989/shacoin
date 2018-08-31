@@ -10,37 +10,27 @@
 
 namespace ShaCoin
 {
-#define ALITEST	1
+#define ALITEST	0
 
 #if ALITEST
 #define SERVERIP	"47.94.162.207"
 #define LOCALPORT	10000
 	//#define IF_NAME "eth0"
 #else //1
-#define SERVERIP	"192.168.180.130"
+#define SERVERIP	"192.168.180.133"
 #define LOCALPORT	20000
 	//#define IF_NAME "ens33"
 #endif //1
 
 #define SERVERPORT	9527
-#define MAX_UDP_SIZE	65507
-#define MAX_P2P_SIZE	MAX_UDP_SIZE - sizeof(int) *3 - sizeof(p2pCommand) - sizeof(size_t)
 
 	typedef enum
 	{
-		cmd_register = 0,
+		cmd_register = 0x1000,
 		cmd_unregister,
 		cmd_getnode,
 		cmd_max
 	} Command;
-
-	typedef enum
-	{
-		p2p_transaction = 0,
-		p2p_bookkeeping,
-		p2p_result,
-		p2p_max
-	} p2pCommand;
 
 	typedef struct st_node
 	{
@@ -68,23 +58,5 @@ namespace ShaCoin
 		Node node;
 	} __attribute__((packed))
 		NodeInfo;
-
-	typedef struct st_p2pMessage
-	{
-		int group;
-		int index;
-		int total;
-		p2pCommand cmd;
-		size_t length;
-		char mess[MAX_P2P_SIZE];
-	} __attribute__((packed))
-		p2pMessage;
-
-	typedef struct st_p2pResult
-	{
-		int group;
-		int index;
-	} __attribute__((packed))
-		p2pResult;
 }
 #endif // __P2PSERVER_H

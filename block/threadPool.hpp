@@ -29,7 +29,7 @@ namespace ShaCoin
 		bool m_bStop;
 		std::queue<T1> m_queue;
 		std::vector<pthread_t> m_vecTid;
-		pthread_mutex_t m_mutex;
+		pthread_mutex_t m_mutexPack;
 		pthread_cond_t m_cond;
 		T2 *m_t2;
 		void (T2::*m_taskFunc) (T1 &t);
@@ -42,7 +42,7 @@ namespace ShaCoin
 	ThreadPool<T1, T2>::ThreadPool(int count)
 	{
 		m_count = count;
-		pthread_mutex_init(&m_mutex, NULL);
+		pthread_mutex_init(&m_mutexPack, NULL);
 		pthread_cond_init(&m_cond, NULL);
 	}
 
@@ -52,16 +52,16 @@ namespace ShaCoin
 		if (!m_bStop)
 			stop();
 
-		pthread_mutex_destroy(&m_mutex);
+		pthread_mutex_destroy(&m_mutexPack);
 		pthread_cond_destroy(&m_cond);
 	}
 
 	template<class T1, class T2>
 	void ThreadPool<T1, T2>::addTask(T1 t)
 	{
-		pthread_mutex_lock(&m_mutex);
+		pthread_mutex_lock(&m_mutexPack);
 		m_queue.push(t);
-		pthread_mutex_unlock(&m_mutex);
+		pthread_mutex_unlock(&m_mutexPack);
 		pthread_cond_signal(&m_cond);
 	}
 
@@ -115,19 +115,19 @@ namespace ShaCoin
 	{
 		while (!m_bStop)
 		{
-			pthread_mutex_lock(&m_mutex);
+			pthread_mutex_lock(&m_mutexPack);
 			while (m_queue.size() <= 0)
 			{
-				pthread_cond_wait(&m_cond, &m_mutex);
-				if (!m_bStop)
+				pthread_cond_wait(&m_cond, &m_mutexPack);
+				if (m_bStop)
 				{
-					pthread_mutex_unlock(&m_mutex);
+					pthread_mutex_unlock(&m_mutexPack);
 					return ;
 				}
 			}
 			T1 t = m_queue.front();
 			m_queue.pop();
-			pthread_mutex_unlock(&m_mutex);
+			pthread_mutex_unlock(&m_mutexPack);
 			(m_t2->*m_taskFunc)(t);
 		}
 	}
