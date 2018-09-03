@@ -22,6 +22,7 @@ block = {
 #include <list>
 #include <string>
 #include <ctime>
+#include <algorithm>
 
 #include "cryptography.hpp"
 
@@ -49,6 +50,16 @@ namespace ShaCoin
 		std::list<Transactions> lst_ts;
 		long int proof;
 		std::string previous_hash;
+
+		bool operator == (const struct __block & value) const
+		{
+			return
+				this->index == value.index &&
+				this->timestamp == value.timestamp &&
+				this->previous_hash == value.previous_hash &&
+				this->lst_ts == value.lst_ts &&
+				this->proof == value.proof;
+		}
 	} Block;
 
 	class BlockChain
@@ -76,14 +87,20 @@ namespace ShaCoin
 		inline void InsertBlock(const Block &block)
 		{
 			pthread_mutex_lock(&m_mutexBlock);
-			m_lst_block.push_back(block);
+			if (m_lst_block.end() == std::find(m_lst_block.begin(), m_lst_block.end(), block))
+			{
+				m_lst_block.push_back(block);
+			}
 			pthread_mutex_unlock(&m_mutexBlock);
 		}
 
 		inline void InsertTransactions(const Transactions &ts)
 		{
 			pthread_mutex_lock(&m_mutexTs);
-			m_lst_ts.push_back(ts);
+			if (m_lst_ts.end() == std::find(m_lst_ts.begin(), m_lst_ts.end(), ts))
+			{
+				m_lst_ts.push_back(ts);
+			}
 			pthread_mutex_unlock(&m_mutexTs);
 		}
 

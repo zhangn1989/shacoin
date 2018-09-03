@@ -348,10 +348,10 @@ namespace ShaCoin
 				Transactions ts = blockChain->GetTransactionsFromJson(bm.json);
 				int balan = blockChain->CheckBalances(ts.sender);
 				if (balan < ts.amount)
-					return;
+					break;
 
 				if (Cryptography::Verify(bm.pubkey, strHash.c_str(), strHash.length(), bm.sign, sizeof(bm.sign), bm.signlen) < 1)
-					return;
+					break;
 
 				blockChain->InsertTransactions(ts);
 			}
@@ -360,7 +360,7 @@ namespace ShaCoin
 			{
 
 				if (Cryptography::Verify(bm.pubkey, strHash.c_str(), strHash.length(), bm.sign, sizeof(bm.sign), bm.signlen) < 1)
-					return;
+					break;
 
 				Block block = blockChain->GetBlockFromJson(std::string(bm.json, strlen(bm.json)));
 				if (blockChain->WorkloadVerification(block.proof))
@@ -375,6 +375,8 @@ namespace ShaCoin
 			default:
 				break;
 			}
+
+			m_lstPackage.remove(package);
 		}
 	}
 

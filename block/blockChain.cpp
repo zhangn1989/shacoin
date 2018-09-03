@@ -13,14 +13,11 @@ namespace ShaCoin
 		{
 			Block GenesisBlock;
 			GenesisBlock.index = 0;
-			GenesisBlock.timestamp = time(NULL);
+			GenesisBlock.timestamp = 1000000;
 			GenesisBlock.lst_ts.clear();
 			GenesisBlock.proof = 0;
 			GenesisBlock.previous_hash = "0";
-
-			pthread_mutex_lock(&m_mutexBlock);
-			m_lst_block.push_back(GenesisBlock);
-			pthread_mutex_unlock(&m_mutexBlock);
+			InsertBlock(GenesisBlock);
 		}
 	}
 
@@ -290,10 +287,6 @@ namespace ShaCoin
 		block.lst_ts = m_lst_ts;
 		m_lst_ts.clear();
 		pthread_mutex_unlock(&m_mutexTs);
-
-		pthread_mutex_lock(&m_mutexBlock);
-		m_lst_block.push_back(block);
-		pthread_mutex_unlock(&m_mutexBlock);
 
 		return block;
 	}

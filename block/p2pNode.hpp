@@ -90,6 +90,14 @@ namespace ShaCoin
 			char messHash[64];
 			P2PCommand cmd;
 			std::map<int, std::string> mapMess;
+
+			bool operator == (const struct st_package & value) const
+			{
+				return
+					this->total == value.total &&
+					this->cmd == value.cmd &&
+					!strcmp(this->messHash, value.messHash);
+			}
 		} Package;
 
 		std::list<Package> m_lstPackage;
