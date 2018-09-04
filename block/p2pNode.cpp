@@ -1,5 +1,7 @@
 #include <string>
 #include <algorithm>
+#include <cstdlib>
+#include <ctime>
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -192,6 +194,59 @@ namespace ShaCoin
 		mess.length = sizeof(BroadcastMessage);
 		memcpy(mess.mess, &bm, mess.length);
 
+		sendMessage(mess);
+	}
+
+	void P2PNode::MergeChain()
+	{
+		P2PMessage mess;
+
+		unsigned int seed = (unsigned)time(NULL);
+		int r = rand_r(&seed);
+		std::string strHash = Cryptography::GetHash(&r, sizeof(r));
+
+		memset(&mess, 0, sizeof(mess));
+		mess.cmd = p2p_merge;
+		mess.total = 1;
+		strcpy(mess.messHash, strHash.c_str());
+		sendMessage(mess);
+	}
+
+	void P2PNode::sendBlockChain()
+	{
+		P2PMessage mess;
+		int i = 0;
+		BlockChain *bc = BlockChain::Instance();
+		std::string strBcJson = bc->GetJsonFromBlockList();
+		std::string strBcHash = Cryptography::GetHash(strBcJson.c_str(), strBcJson.length());
+		int total = strBcJson.length() / MAX_P2P_SIZE + 1;
+
+		for (i = 0; i < total - 1; ++i)
+		{
+			memset(&mess, 0, sizeof(mess));
+			mess.cmd = p2p_blockchain;
+			mess.index = i;
+			mess.total = total;
+			mess.length = MAX_P2P_SIZE;
+			strcpy(mess.messHash, strBcHash.c_str());
+			strncpy(mess.mess, strBcJson.c_str() + i * MAX_P2P_SIZE, MAX_P2P_SIZE);
+
+			sendMessage(mess);
+		}
+
+		memset(&mess, 0, sizeof(mess));
+		mess.cmd = p2p_blockchain;
+		mess.index = i;
+		mess.total = total;
+		mess.length = strBcJson.length() % MAX_P2P_SIZE;
+		strcpy(mess.messHash, strBcHash.c_str());
+		strncpy(mess.mess, strBcJson.c_str() + i * MAX_P2P_SIZE, mess.length);
+
+		sendMessage(mess);
+	}
+
+	void P2PNode::sendMessage(P2PMessage &mess)
+	{
 		sockaddr_in otherAddr;
 		memset(&otherAddr, 0, sizeof(otherAddr));
 		otherAddr.sin_family = AF_INET;
@@ -333,18 +388,18 @@ namespace ShaCoin
 				str += mapIt->second;
 			}
 
-			BroadcastMessage bm;
-			memset(&bm, 0, sizeof(bm));
-			memcpy(&bm, str.c_str(), str.length());
-
 			BlockChain *blockChain = BlockChain::Instance();
-
-			std::string strHash = ShaCoin::Cryptography::GetHash(bm.json, strlen(bm.json));
 
 			switch (package.cmd)
 			{
 			case p2p_transaction:
 			{
+				BroadcastMessage bm;
+				memset(&bm, 0, sizeof(bm));
+				memcpy(&bm, str.c_str(), str.length());
+
+				std::string strHash = ShaCoin::Cryptography::GetHash(bm.json, strlen(bm.json));
+				
 				Transactions ts = blockChain->GetTransactionsFromJson(bm.json);
 				int balan = blockChain->CheckBalances(ts.sender);
 				if (balan < ts.amount)
@@ -358,12 +413,12 @@ namespace ShaCoin
 				break;
 			case p2p_bookkeeping:
 			{
-
-				if (Cryptography::Verify(bm.pubkey, strHash.c_str(), strHash.length(), bm.sign, sizeof(bm.sign), bm.signlen) < 1)
-					break;
+				BroadcastMessage bm;
+				memset(&bm, 0, sizeof(bm));
+				memcpy(&bm, str.c_str(), str.length());
 
 				Block block = blockChain->GetBlockFromJson(std::string(bm.json, strlen(bm.json)));
-				if (blockChain->WorkloadVerification(block.proof))
+				if (block.proof > blockChain->GetLastBlock().proof && blockChain->WorkloadVerification(block.proof))
 				{
 					blockChain->DeleteDuplicateTransactions(block);
 					blockChain->InsertBlock(block);
@@ -371,6 +426,12 @@ namespace ShaCoin
 			}
 				break;
 			case p2p_result:
+				break;
+			case p2p_merge:
+				sendBlockChain();
+				break;
+			case p2p_blockchain:
+				blockChain->MergeBlockChain(str);
 				break;
 			default:
 				break;

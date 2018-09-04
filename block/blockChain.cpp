@@ -194,11 +194,9 @@ namespace ShaCoin
 		return is.str();
 	}
 
-	void BlockChain::GetBlockListFromJson(const std::string &json)
+	std::list<Block> BlockChain::GetBlockListFromJson(const std::string &json)
 	{
-		pthread_mutex_lock(&m_mutexBlock);
-		m_lst_block.clear();
-		pthread_mutex_unlock(&m_mutexBlock);
+		std::list<Block> lst_block;
 		std::stringstream ss(json);
 		boost::property_tree::ptree pt;
 		boost::property_tree::ptree barray;
@@ -225,10 +223,10 @@ namespace ShaCoin
 				block.lst_ts.push_back(ts);
 			}
 
-			pthread_mutex_lock(&m_mutexBlock);
-			m_lst_block.push_back(block);
-			pthread_mutex_unlock(&m_mutexBlock);
+			lst_block.push_back(block);
 		}
+
+		return lst_block;
 	}
 
 	void BlockChain::GetTransactionsListFromJson(const std::string &json)
@@ -370,5 +368,58 @@ namespace ShaCoin
 			}
 		}
 		pthread_mutex_unlock(&m_mutexTs);
+	}
+
+	void BlockChain::MergeBlockChain(const std::string &json)
+	{
+		std::list<Block> lst_block = GetBlockListFromJson(json);
+		lst_block.pop_front();
+
+		if (lst_block.size() > m_lst_block.size())
+		{
+			std::list<Block>::iterator it;
+
+			pthread_mutex_lock(&m_mutexBlock);
+
+			for (it = m_lst_block.begin(); it != m_lst_block.end(); ++it)
+			{
+				Block block = lst_block.back();
+				if(it->proof <= block.proof)
+					continue;
+				std::string strJson = GetJsonFromBlock(block);
+				std::string strHash = Cryptography::GetHash(strJson.c_str(), strJson.length());
+
+				it->index = block.index + 1;
+				it->previous_hash = strHash;
+				lst_block.push_back(*it);
+			}
+			
+			m_lst_block = lst_block;
+
+			pthread_mutex_unlock(&m_mutexBlock);
+		}
+		else
+		{
+			std::list<Block>::iterator it;
+			for (it = lst_block.begin(); it != lst_block.end(); ++it)
+			{
+				pthread_mutex_lock(&m_mutexBlock);
+
+				Block block = m_lst_block.back();
+				if (it->proof <= block.proof)
+				{
+					pthread_mutex_unlock(&m_mutexBlock);
+					continue;
+				}
+				std::string strJson = GetJsonFromBlock(block);
+				std::string strHash = Cryptography::GetHash(strJson.c_str(), strJson.length());
+
+				it->index = block.index + 1;
+				it->previous_hash = strHash;
+				m_lst_block.push_back(*it);
+
+				pthread_mutex_unlock(&m_mutexBlock);
+			}
+		}
 	}
 }

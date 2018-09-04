@@ -73,7 +73,7 @@ namespace ShaCoin
 		Transactions GetTransactionsFromJson(const std::string &json);
 		std::string GetJsonFromBlockList();
 		std::string GetJsonFromTransactionsList();
-		void GetBlockListFromJson(const std::string &json);
+		std::list<Block> GetBlockListFromJson(const std::string &json);
 		void GetTransactionsListFromJson(const std::string &json);
 		std::string CreateNewAddress(const KeyPair &keyPair);
 		Transactions CreateTransactions(const std::string &sender, const std::string &recipient, float amount);
@@ -83,6 +83,7 @@ namespace ShaCoin
 		std::string Mining(const std::string &addr);
 		int CheckBalances(const std::string &addr);
 		void DeleteDuplicateTransactions(const Block &block);
+		void MergeBlockChain(const std::string &json);
 
 		inline void InsertBlock(const Block &block)
 		{

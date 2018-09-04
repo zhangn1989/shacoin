@@ -22,6 +22,8 @@ namespace ShaCoin
 		p2p_transaction = 0x2000,
 		p2p_bookkeeping,
 		p2p_result,
+		p2p_merge,
+		p2p_blockchain,
 		p2p_max
 	} P2PCommand;
 
@@ -65,6 +67,7 @@ namespace ShaCoin
 		static P2PNode *Instance(const char *if_name);
 		void Listen();
 		void Broadcast(P2PCommand cmd, const BroadcastMessage &bm);
+		void MergeChain();
 
 	protected:
 		P2PNode(const char *if_name);
@@ -107,6 +110,8 @@ namespace ShaCoin
 		void threadHandler();
 		void combinationPackage(P2PMessage &mess);
 		int get_local_ip(const char *ifname, char *ip);
+		void sendMessage(P2PMessage &mess);
+		void sendBlockChain();
 	};
 }
 #endif	//__P2PNODE_H

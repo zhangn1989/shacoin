@@ -39,8 +39,40 @@ namespace ShaCoin
 		return ss.str();
 	}
 
-	std::string Cryptography::Base64Encode(const void*buff, size_t len)
+	std::string Cryptography::Base64Encode(const void*buff, int len)
 	{
+		int i;
+		std::string str;
+		int outl = -1;
+		char out[(1024 * 5) / 3];
+		EVP_ENCODE_CTX *ctx = EVP_ENCODE_CTX_new();
+
+		if (!ctx)
+			return str;
+
+		EVP_EncodeInit(ctx);
+
+		for (i = 0; i < len / 1024; ++i)
+		{
+			memset(out, 0, sizeof(out));
+			EVP_EncodeUpdate(ctx, (unsigned char *)out, &outl, (unsigned char *)buff + i * 1024, 1024);
+			str += std::string(out, outl);
+		}
+
+		memset(out, 0, sizeof(out));
+		EVP_EncodeUpdate(ctx, (unsigned char *)out, &outl, (unsigned char *)buff + i * 1024, len % 1024);
+		str += std::string(out, outl);
+
+		memset(out, 0, sizeof(out));
+		EVP_EncodeFinal(ctx, (unsigned char *)out, &outl);
+		str += std::string(out, outl);
+
+		EVP_ENCODE_CTX_free(ctx);
+
+		str.erase(std::remove(str.begin(), str.end(), '\n'), str.end());
+
+		return str;
+#if 0
 		typedef boost::archive::iterators::base64_from_binary<boost::archive::iterators::transform_width<const char *, 6, 8> > Base64EncodeIterator;
 		std::stringstream result;
 		std::copy(Base64EncodeIterator(buff), Base64EncodeIterator((char*)buff + len), std::ostream_iterator<char>(result));
@@ -51,10 +83,54 @@ namespace ShaCoin
 		}
 
 		return result.str();
+#endif
 	}
 
 	void Cryptography::Base64Decode(const std::string &str64, void *outbuff, size_t outsize, size_t *outlen)
 	{
+		unsigned int i;
+		unsigned int inlen = str64.length();
+		if (outsize * 5 / 3 < inlen)
+		{
+			*outlen = -1;
+			return;
+		}
+
+		int outl = -1;
+		char out[(1024 * 5) / 3];
+		char *p = (char *)outbuff;
+
+		EVP_ENCODE_CTX *ctx = EVP_ENCODE_CTX_new();
+
+		if (!ctx)
+		{
+			*outlen = -1;
+			return;
+		}
+
+		EVP_DecodeInit(ctx);
+
+		for (i = 0; i < str64.length() / 1024; ++i)
+		{
+			memset(out, 0, sizeof(out));
+			EVP_DecodeUpdate(ctx, (unsigned char *)out, &outl, (unsigned char *)str64.c_str() + i * 1024, 1024);
+			memcpy(p, out, outl);
+			p += outl;
+			*outlen += outl;
+		}
+
+		memset(out, 0, sizeof(out));
+		EVP_DecodeUpdate(ctx, (unsigned char *)out, &outl, (unsigned char *)str64.c_str() + i * 1024, str64.length() % 1024);
+		memcpy(p, out, outl);
+		p += outl;
+		*outlen += outl;
+
+		memset(out, 0, sizeof(out));
+		EVP_DecodeFinal(ctx, (unsigned char *)out, &outl);
+		memcpy(p, out, outl);
+		p += outl;
+		*outlen += outl;
+#if 0
 		unsigned int inlen = str64.length();
 		const char *inbuff = str64.c_str();
 		if (outsize * 4 / 3 < inlen)
@@ -80,12 +156,13 @@ namespace ShaCoin
 		*outlen = str.length();
 		memcpy((char *)outbuff, str.c_str(), *outlen);
 		return;
+#endif
 	}
 
 	void Cryptography::Createkey(KeyPair &keyPair)
 	{
 		unsigned char *p = NULL;
-		keyPair.prikey.len = -1;
+		keyPair.priKey.len = -1;
 		keyPair.pubKey.len = -1;
 
 		EC_GROUP *group = EC_GROUP_new_by_curve_name(NID_secp256k1);
@@ -120,16 +197,16 @@ namespace ShaCoin
 			return;
 		}
 
-		keyPair.prikey.len = i2d_ECPrivateKey(key, NULL);
-		if (keyPair.prikey.len > (int)sizeof(keyPair.prikey.key))
+		keyPair.priKey.len = i2d_ECPrivateKey(key, NULL);
+		if (keyPair.priKey.len > (int)sizeof(keyPair.priKey.key))
 		{
-			keyPair.prikey.len = -1;
+			keyPair.priKey.len = -1;
 			EC_GROUP_free(group);
 			EC_KEY_free(key);
 			return;
 		}
-		p = keyPair.prikey.key;
-		keyPair.prikey.len = i2d_ECPrivateKey(key, &p);
+		p = keyPair.priKey.key;
+		keyPair.priKey.len = i2d_ECPrivateKey(key, &p);
 
 		keyPair.pubKey.len = i2o_ECPublicKey(key, NULL);
 		if (keyPair.pubKey.len > (int)sizeof(keyPair.pubKey.key))
@@ -146,11 +223,11 @@ namespace ShaCoin
 		EC_KEY_free(key);
 	}
 
-	bool Cryptography::Signature(const KeyData &prikey, const void *data, int datalen, unsigned char *sign, size_t signszie, unsigned int *signlen)
+	bool Cryptography::Signature(const KeyData &priKey, const void *data, int datalen, unsigned char *sign, size_t signszie, unsigned int *signlen)
 	{
 		EC_KEY *ec_key = NULL;
-		const unsigned char *pp = (const unsigned char *)prikey.key;
-		ec_key = d2i_ECPrivateKey(&ec_key, &pp, prikey.len);
+		const unsigned char *pp = (const unsigned char *)priKey.key;
+		ec_key = d2i_ECPrivateKey(&ec_key, &pp, priKey.len);
 		if (!ec_key)
 			return false;
 
@@ -215,5 +292,38 @@ namespace ShaCoin
 		EC_GROUP_free(ec_group);
 		EC_KEY_free(ec_key);
 		return ret;
+	}
+
+	std::string Cryptography::StringToLower(const std::string &str)
+	{
+		std::string strTmp = str;
+		std::transform(strTmp.begin(), strTmp.end(), strTmp.begin(), tolower);
+		return strTmp;
+	}
+
+	bool Cryptography::CompareNoCase(const std::string &strA, const std::string &strB)
+	{
+		std::string str1 = StringToLower(strA);
+		std::string str2 = StringToLower(strB);
+		return (str1 == str2);
+	}
+
+	std::vector<std::string> Cryptography::StringSplit(const std::string &str, const char sep)
+	{
+		std::vector<std::string> strvec;
+
+		std::string::size_type pos1, pos2;
+		pos2 = str.find(sep);
+		pos1 = 0;
+		while (std::string::npos != pos2)
+		{
+			strvec.push_back(str.substr(pos1, pos2 - pos1));
+
+			pos1 = pos2 + 1;
+			pos2 = str.find(sep, pos1);
+		}
+		strvec.push_back(str.substr(pos1));
+		return strvec;
+
 	}
 }
