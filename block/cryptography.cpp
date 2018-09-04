@@ -72,18 +72,6 @@ namespace ShaCoin
 		str.erase(std::remove(str.begin(), str.end(), '\n'), str.end());
 
 		return str;
-#if 0
-		typedef boost::archive::iterators::base64_from_binary<boost::archive::iterators::transform_width<const char *, 6, 8> > Base64EncodeIterator;
-		std::stringstream result;
-		std::copy(Base64EncodeIterator(buff), Base64EncodeIterator((char*)buff + len), std::ostream_iterator<char>(result));
-		size_t equal_count = (3 - len % 3) % 3;
-		for (size_t i = 0; i < equal_count; i++)
-		{
-			result.put('=');
-		}
-
-		return result.str();
-#endif
 	}
 
 	void Cryptography::Base64Decode(const std::string &str64, void *outbuff, size_t outsize, size_t *outlen)
@@ -130,33 +118,6 @@ namespace ShaCoin
 		memcpy(p, out, outl);
 		p += outl;
 		*outlen += outl;
-#if 0
-		unsigned int inlen = str64.length();
-		const char *inbuff = str64.c_str();
-		if (outsize * 4 / 3 < inlen)
-		{
-			*outlen = -1;
-			return;
-		}
-
-		std::stringstream result;
-
-		typedef boost::archive::iterators::transform_width<boost::archive::iterators::binary_from_base64<const char *>, 8, 6> Base64DecodeIterator;
-
-		try
-		{
-			std::copy(Base64DecodeIterator(inbuff), Base64DecodeIterator(inbuff + inlen), std::ostream_iterator<char>(result));
-		}
-		catch (...)
-		{
-			return;
-		}
-
-		std::string str = result.str();
-		*outlen = str.length();
-		memcpy((char *)outbuff, str.c_str(), *outlen);
-		return;
-#endif
 	}
 
 	void Cryptography::Createkey(KeyPair &keyPair)
