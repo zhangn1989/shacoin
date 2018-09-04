@@ -22,11 +22,11 @@ namespace ShaCoin
 			return ;
 		}
 
-// 		int val = 1;
-// 		if (setsockopt(m_sock, SOL_SOCKET, SO_REUSEADDR, &val, sizeof(val)) < 0)
-// 		{
-// 			perror("setsockopt");
-// 		}
+		int val = 1;
+		if (setsockopt(m_sock, SOL_SOCKET, SO_REUSEADDR, &val, sizeof(val)) < 0)
+		{
+			perror("setsockopt");
+		}
 
 		struct timeval tv_out;
 		tv_out.tv_sec = 10;//µÈ´ý10Ãë

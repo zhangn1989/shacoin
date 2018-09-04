@@ -29,21 +29,25 @@ namespace ShaCoin
 		bool m_bStop;
 		std::queue<T1> m_queue;
 		std::vector<pthread_t> m_vecTid;
-		pthread_mutex_t m_mutexPack;
-		pthread_cond_t m_cond;
 		T2 *m_t2;
 		void (T2::*m_taskFunc) (T1 &t);
+
+		static pthread_mutex_t m_mutexPack;
+		static pthread_cond_t m_cond;
 
 		static void *threadFunc(void *arg);
 		void threadHandler();
 	};
 
 	template<class T1, class T2>
+	pthread_mutex_t ThreadPool<T1, T2>::m_mutexPack = PTHREAD_MUTEX_INITIALIZER;
+	template<class T1, class T2>
+	pthread_cond_t ThreadPool<T1, T2>::m_cond = PTHREAD_COND_INITIALIZER;
+
+	template<class T1, class T2>
 	ThreadPool<T1, T2>::ThreadPool(int count)
 	{
 		m_count = count;
-		pthread_mutex_init(&m_mutexPack, NULL);
-		pthread_cond_init(&m_cond, NULL);
 	}
 
 	template<class T1, class T2>
@@ -51,9 +55,6 @@ namespace ShaCoin
 	{
 		if (!m_bStop)
 			stop();
-
-		pthread_mutex_destroy(&m_mutexPack);
-		pthread_cond_destroy(&m_cond);
 	}
 
 	template<class T1, class T2>
